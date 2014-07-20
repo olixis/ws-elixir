@@ -1,23 +1,24 @@
 defmodule DumbIncrementHandler do
   #@behaviour :simple_handler
 
-  defrecord State, counter: 0
+  require Record
+  Record.defrecordp :state, counter: 0
 
   def init(_any, req) do
     :timer.send_interval 50, :tick
-    {:ok, req, State.new}
+    {:ok, req, state()}
   end
 
-  def stream("reset\n", req, state) do
-    {:ok, req, state.counter(0)}
+  def stream("reset\n", req, _state) do
+    {:ok, req, state(counter: 0)}
   end
 
   # Received timer event
-  def info(:tick, req, state) do
+  def info(:tick, req, state(counter: counter)) do
     {:reply,
-      to_string(state.counter),
+      to_string(counter),
       req,
-      state.update_counter(fn(x) -> x + 1 end)}
+      state(counter: counter+1)}
   end
 
   def info(_info, req, state) do

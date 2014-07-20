@@ -5,7 +5,8 @@ defmodule WebSocketHandler do
 
   ## This is the part where we handle our WebSocket protocols
 
-  defrecord State, handler: nil, handler_state: nil
+  require Record
+  Record.defrecord :state, handler: nil, handler_state: nil
 
   def websocket_init(_any, req, opts) do
     # Select a handler based on the WebSocket sub-protocol
@@ -27,8 +28,8 @@ defmodule WebSocketHandler do
       {:ok, req, state} ->
         req = :cowboy_req.compact req
         req = :cowboy_req.set_resp_header("Sec-WebSocket-Protocol", elem(proto, 1), req)
-        format_ok req, State.new(handler: handler,
-                                 handler_state: state)
+        format_ok req, state(handler: handler,
+                             handler_state: state)
 
       {:shutdown, req, _state} ->
         {:shutdown, req}
@@ -36,16 +37,13 @@ defmodule WebSocketHandler do
   end
 
   # Dispatch generic message to the handler
-  def websocket_handle({:text, msg}, req, state) do
-    handler = state.handler
-    handler_state = state.handler_state
-
+  def websocket_handle({:text, msg}, req, state(handler: handler, handler_state: handler_state)=state) do
     case handler.stream(msg, req, handler_state) do
       {:ok, req, new_state} ->
-        format_ok req, state.handler_state(new_state)
+        format_ok req, state(state, handler_state: new_state)
 
       {:reply, reply, req, new_state} ->
-        format_reply req, reply, state.handler_state(new_state)
+        format_reply req, reply, state(state, handler_state: new_state)
     end
   end
 
@@ -55,16 +53,13 @@ defmodule WebSocketHandler do
   end
 
   # Various service messages
-  def websocket_info(info, req, state) do
-    handler = state.handler
-    handler_state = state.handler_state
-
+  def websocket_info(info, req, state(handler: handler, handler_state: handler_state)=state) do
     case handler.info(info, req, handler_state) do
       {:ok, req, new_state} ->
-        format_ok req, state.handler_state(new_state)
+        format_ok req, state(state, handler_state: new_state)
 
       {:reply, reply, req, new_state} ->
-        format_reply req, reply, state.handler_state(new_state)
+        format_reply req, reply, state(state, handler_state: new_state)
     end
   end
 
